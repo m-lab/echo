@@ -36,10 +36,10 @@ static void* ServerThread(void* config_ptr) {
     socket->Accept();
     std::cout << "[" << config->type << ":" << config->port << "] Ready";
 
-    mlab::Packet p = socket->Receive(MAX_BYTES);
+    mlab::Packet p = socket->ReceiveOrDie(MAX_BYTES);
     std::cout << "[" << config->type << ":" << config->port << "] Echoing: "
               << p.buffer() << "\n";
-    socket->Send(p);
+    socket->SendOrDie(p);
     delete socket;
   }
   delete config;
