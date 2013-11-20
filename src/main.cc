@@ -5,7 +5,8 @@
 #include <iostream>
 
 #include "mlab/mlab.h"
-#include "mlab/server_socket.h"
+#include "mlab/listen_socket.h"
+#include "mlab/accepted_socket.h"
 #include "mlab/socket_type.h"
 
 const int MAX_BYTES = 1024;
@@ -22,7 +23,7 @@ static void* ServerThread(void* config_ptr) {
   ServerConfig* config = (ServerConfig*) config_ptr;
 
   while (true) {
-    mlab::ServerSocket* socket = mlab::ServerSocket::CreateOrDie(
+    mlab::ListenSocket* socket = mlab::ListenSocket::CreateOrDie(
         config->port, config->type, SOCKETFAMILY_IPV6);
 
     // Disable timeouts.
@@ -33,13 +34,17 @@ static void* ServerThread(void* config_ptr) {
 
     std::cout << "[" << config->type << ":" << config->port << "] Up";
     socket->Select();
-    socket->Accept();
+    mlab::AcceptedSocket* echo_socket = socket->Accept();
     std::cout << "[" << config->type << ":" << config->port << "] Ready";
 
-    mlab::Packet p = socket->ReceiveOrDie(MAX_BYTES);
-    std::cout << "[" << config->type << ":" << config->port << "] Echoing: "
-              << p.buffer() << "\n";
-    socket->SendOrDie(p);
+    mlab::Packet p = echo_socket->Receive(MAX_BYTES, NULL);
+    while (p.length() > 0) {
+      std::cout << "[" << config->type << ":" << config->port << "] Echoing: "
+                << p.buffer();
+      echo_socket->SendOrDie(p);
+      p = echo_socket->Receive(MAX_BYTES, NULL);
+    }
+    delete echo_socket;
     delete socket;
   }
   delete config;
